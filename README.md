@@ -4,8 +4,10 @@ Rolling Curl Mini
 Rolling Curl Mini allows to process multiple HTTP requests in parallel using cURL PHP library.
 It is a fork of [Rolling Curl] (http://code.google.com/p/rolling-curl/).
 
+For more information read [this article (in russian)] (http://savreen.com/mnogopotochnyj-sbor-dannyx-s-ispolzovaniem-cepochek-svyazannyx-curl-zaprosov-chast-1/)
 
-Usage Sample
+
+Basic Usage Sample
 -------------
 ``` php
 ...
