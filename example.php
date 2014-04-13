@@ -1,37 +1,34 @@
 <?php
 
-require_once 'RollingCurlMini.inc.php';
+require_once dirname(__FILE__). '/RollingCurlMini.inc.php';
 
 class Scraper
 {
     const N_THREADS = 10;
-    const N_MAXLOOPS = 3;
+    const N_MAXLOOPS = 2;
     const FILE_COOKIE = 'cookie-%03d.txt';
+    const URL_SITE = 'http://www.imdb.com';
+    const RX_TITLE = '/<title>([^<>]+)</isu';
+    const RX_XTRA_URL = '/Director\:\s*<\/h4>\s*<a\s+href="([^"]+)"/isu';
+    const RX_XTRA_DATA1 = '/<span\s+[^>]*itemprop="name">([^<>]+)</isu';
+    const RX_XTRA_DATA2 = '/<span\s+itemprop="awards">(?:<b>|)([^<>]+)</isu';
 
     static protected $A_CURL_OPTS = array(
         CURLOPT_NOBODY => 0,
         CURLOPT_RETURNTRANSFER => 1,
         CURLOPT_SSL_VERIFYPEER => 0,
         CURLOPT_SSL_VERIFYHOST => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_AUTOREFERER => true,
-        CURLOPT_MAXREDIRS => 3,
         CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0',
         CURLOPT_TIMEOUT => 20,
         CURLOPT_CONNECTTIMEOUT => 15,
         CURLINFO_HEADER_OUT => true,
+        CURLOPT_HEADER => true,
     );
 
     static protected $A_DB_ITEMS = array(
-        1 => array('url' => 'http://example.com/page/1/'),
-        4 => array('url' => 'http://example.com/page/4/'),
-        5 => array('url' => 'http://example.com/page/5/'),
-    );
-
-    static protected $A_DB_PROXIES = array(
-        '500.500.500.1:80',
-        '500.500.500.2:80',
-        '500.500.500.3:80',
+        1 => array('url' => 'http://www.imdb.com/title/tt0111161/'),
+        4 => array('url' => 'http://www.imdb.com/title/tt0068646/'),
+        6 => array('url' => 'http://www.imdb.com/title/tt0468569/'),
     );
 
     static protected $A_DB_UAGENTS = array(
@@ -43,8 +40,8 @@ class Scraper
     protected $oMc = 0;
     protected $sCookieFile = '';
     protected $aItems = array();
-    protected $aProxies = array();
     protected $aUagents = array();
+    protected $aResults = array();
 
 
     public function __construct() {
@@ -57,26 +54,25 @@ class Scraper
      */
     public function run($nThreads = 0) {
         $this->loadItems();
-        if (!$this->aItems) return;
-        $this->loadProxies();
         $this->loadUagents();
         if ($nThreads <= 0)
             $nThreads = self::N_THREADS;
         $this->oMc = new RollingCurlMini($nThreads);
         $this->oMc->setOptions(self::$A_CURL_OPTS);
-        for ($l = 0; $l < N_MAXLOOPS && count($this->aItems); $l++) {
+        for ($l = 0; $l < self::N_MAXLOOPS && count($this->aItems); $l++) {
             foreach ($this->aItems as $id => $a_item)
                 $this->requestItem($id);
             $this->oMc->execute();
         }
+        return $this->aResults;
+    }
+
+    public function getItems() {
+        return $this->aItems;
     }
 
     protected function loadItems() {
         $this->aItems = self::$A_DB_ITEMS;
-    }
-
-    protected function loadProxies() {
-        $this->aProxies = self::$A_DB_PROXIES;
     }
 
     protected function loadUagents() {
@@ -84,7 +80,7 @@ class Scraper
     }
 
     /**
-     * Add an item request to the request queue
+     * Add item request to the request queue
      * @param int $id - item ID
      */
     protected function requestItem($id) {
@@ -105,11 +101,9 @@ class Scraper
      */
     public function handleItem($cont, $url, $aInfo, $id) {
         if (!isset($this->aItems[$id])) return;
-        if (!$cont) {
-            $this->excludeItemProxy($id);
-            return;
-        }
-        $url_xtra = $this->processItem($cont);
+        if (!$cont) return;
+        echo $aInfo['request_header']. $aInfo['response_header']. "\n";
+        $url_xtra = $this->processItem($id, $cont);
         if (!$url_xtra)
             return;
         $this->aItems[$id]['url_xtra'] = $url_xtra;
@@ -117,21 +111,23 @@ class Scraper
     }
 
     /**
-     * Process content of item page
+     * Process content of item page (movie info)
      * @param int $id - item ID
      * @param string $cont - content of item page
      * @return string - URL of item extra resource
      */
     protected function processItem($id, $cont) {
-        $url_xtra = '';
-        // parse content of item page, process the results
-        // as well as find URL of item extra resource 
-        // ... 
+        if (!preg_match(self::RX_XTRA_URL, $cont, $arr)) return false;
+        $url_xtra = self::URL_SITE. trim($arr[1]);
+        $title = preg_match(self::RX_TITLE, $cont, $arr)? trim($arr[1]) : '';
+        $this->aResults[$id] = array(
+            'title' => $title, 'url' => $this->aItems[$id]['url'],
+        );
         return $url_xtra;
     }
 
     /**
-     * Add an item extra request to the request queue
+     * Add item extra request to the request queue
      * @param int $id - item ID
      */
     protected function requestItemXtra($id) {
@@ -153,18 +149,22 @@ class Scraper
     public function handleItemXtra($cont, $url, $aInfo, $id) {
         if (!isset($this->aItems[$id])) return;
         if (!$cont) return;
-        $this->processItemXtra($cont);
+        echo $aInfo['request_header']. $aInfo['response_header']. "\n";
+        $this->processItemXtra($id, $cont);
         unset($this->aItems[$id]);
     }
 
     /**
-     * Process content of item extra resource
+     * Process content of item extra resource (movie director info)
      * @param int $id - item ID
      * @param string $cont - content of item extra resource
      */
     protected function processItemXtra($id, $cont) {
-        // parse content of item extra resource and process the results
-        // ...
+        unset($this->aItems[$id]);
+        $this->aResults[$id]['director'] = $name =
+            preg_match(self::RX_XTRA_DATA1, $cont, $arr)? trim($arr[1]) : '';
+        $this->aResults[$id]['director_awards'] = $awards =
+            preg_match(self::RX_XTRA_DATA2, $cont, $arr)? trim($arr[1]) : '';
     }
 
     /**
@@ -181,35 +181,22 @@ class Scraper
         $a_opts = array(
             CURLOPT_COOKIEFILE => $s_cookie, CURLOPT_COOKIEJAR => $s_cookie
         );
-        if ($n1 = count($this->aProxies)) {
+        if ($n = count($this->aUagents)) {
             if ($b1st)
-                $ra_job['i_proxy'] = mt_rand(0, $n1- 1);
-            $a_opts[CURLOPT_PROXY] = $this->aProxies[$ra_job['i_proxy']];
-            if ($n2 = count($this->aUagents)) {
-                if ($b1st)
-                    $ra_job['i_uagent'] = mt_rand(0, $n2- 1);
-                $a_opts[CURLOPT_USERAGENT] = $this->aUagents[$ra_job['i_uagent']];
-            }
+                $ra_job['i_uagent'] = mt_rand(0, $n- 1);
+            $a_opts[CURLOPT_USERAGENT] = $this->aUagents[$ra_job['i_uagent']];
         }
         if ($ra_job['url_prev'])
             $a_opts[CURLOPT_REFERER] = $ra_job['url_prev'];
         $ra_job['url_prev'] = $url;
         return $a_opts;
     }
-
-    /**
-     * Exclude proxy used on item request
-     * @param int $id - item ID
-     */
-    protected function excludeItemProxy($id) {
-        if (!isset($this->aItems[$id]) || !$this->aItems[$id]['i_proxy']) return;
-        $i = $this->aItems[$id]['i_proxy'];
-        if (!isset($this->aProxies[$i])) return;
-        unset($this->aProxies[$i]);
-        $this->aProxies = array_values($this->aProxies);
-    }
 }
 
 
-$o_scrp = new Scraper();
-$o_scrp->run();
+$scraper = new Scraper();
+echo '<h1>RollingCurlMini usage example</h1><pre><h2>HTTP traffic:</h2>';
+$result = $scraper->run();
+echo '<h2>Result:</h2>';
+print_r($result);
+echo '</pre>';

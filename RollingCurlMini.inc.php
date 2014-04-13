@@ -142,7 +142,13 @@ class RollingCurlMini
                     $output = 0;
                 $key = (string) $hc;
                 $request = $this->aRequests[$a_requests_map[$key]];
-                list($url, , $callback, $userdata, , ) = $request;
+                list($url, , $callback, $userdata, $a_opts, ) = $request;
+                if ($output &&
+                    ($this->aOptions[CURLOPT_HEADER] || $a_opts[CURLOPT_HEADER])) {
+                    $k = intval($a_info['header_size']);
+                    $a_info['response_header'] = substr($output, 0, $k);
+                    $output = substr($output, $k);
+                }
                 // remove completed request and its curl handle
                 unset($a_requests_map[$key]);
                 curl_multi_remove_handle($h_mc, $hc);
