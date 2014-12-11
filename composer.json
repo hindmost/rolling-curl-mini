@@ -1,0 +1,10 @@
+{
+    "name": "hindmost/rolling-curl-mini",
+    "version": "1.0.0",
+    "require": {
+        "php": ">=5.0.0"
+    },
+    "autoload": {
+        "classmap": ["RollingCurlMini.php", "RollingScraperAbstract.php"]
+    }
+}
