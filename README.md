@@ -1,10 +1,10 @@
 Rolling Curl Mini
 ===============
 
-Rolling Curl Mini is a fork of [Rolling Curl] (http://code.google.com/p/rolling-curl/).
+Rolling Curl Mini is a fork of [Rolling Curl](http://code.google.com/p/rolling-curl/).
 It allows to process multiple HTTP requests in parallel using cURL PHP library.
 
-For more information read [this article] (http://savreen.com/mnogopotochnyj-sbor-dannyx-s-ispolzovaniem-cepochek-svyazannyx-curl-zaprosov-chast-1/) (in russian).
+For more information read [this article](http://savreen.com/mnogopotochnyj-sbor-dannyx-s-ispolzovaniem-cepochek-svyazannyx-curl-zaprosov-chast-1/) (in russian).
 
 Basic Usage Sample
 -------------
@@ -38,7 +38,7 @@ function request_callback($content, $url, $info, $userdata) {
 
 License
 -------------
-* [Apache License 2.0] (http://www.apache.org/licenses/LICENSE-2.0)
+* [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
 
 
@@ -49,6 +49,10 @@ Rolling Scraper Abstract is a multipurpose scraping (crawling) framework which u
 It is a base PHP class which implement common functionality of a multi-curl scraper.
 Particular functionality should be implemented in derived classes.
 Particular scraper class should extend RollingScraperAbstract class and implement (override) two mandatory methods: _initPages and _handlePage.
+
+For more information read [this article](http://savreen.com/karkas-mnogopotochnogo-parsera-primenenie-na-primere-parsinga-imdb-top-250/) (in russian).
+
+[Example](https://github.com/hindmost/rolling-scraper-example-imdb)
 
 Basic Usage Sample
 -------------
