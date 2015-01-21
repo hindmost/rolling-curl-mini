@@ -231,6 +231,7 @@ class RollingScraperAbstract
                 if ($n_buff && $j++ < $n_buff) continue;
                 $this->oCurl->execute();
                 $b = true;
+                if (!count($this->aStateReqs)) break;
             }
             if (!$b)
                 $this->oCurl->execute();
@@ -356,7 +357,7 @@ class RollingScraperAbstract
         $a_data = array_slice($aReq, 2);
         $a_opts = $this->_buildReqOptions($a_data);
         if ($i !== false && isset($this->aStateUrls[$i])) {
-            $a_ref = array(CURLOPT_REFERER => $this->aStateUrls[$i]);
+            $a_ref = array(CURLOPT_REFERER => $this->_fixReqUrl($this->aStateUrls[$i]));
             $a_opts = $a_opts? array_merge($a_opts, $a_ref) : $a_ref;
         }
         $this->oCurl->add(
@@ -420,7 +421,7 @@ class RollingScraperAbstract
      * Break (abort) scraping process
      */
     protected function breakRun() {
-        $this->aStateUrls = $this->aStateReqs = array();
+        $this->aStateReqs = array();
         $this->oCurl->requestBreak();
     }
 
